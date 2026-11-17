@@ -1,0 +1,22 @@
+{
+  "name": "christmas-student-search",
+  "version": "1.0.0",
+  "description": "A festive, mobile-optimized Christmas-themed student record and fee search web application supporting Excel, CSV, PDF, and Text uploads.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "christmas",
+    "student-search",
+    "excel-parser",
+    "pdf-parser",
+    "sheetjs",
+    "pdfjs",
+    "frontend",
+    "javascript"
+  ],
+  "author": "",
+  "license": "MIT"
+}

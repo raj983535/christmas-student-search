@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Holiday Student Data Search</title>
+    <meta name="description" content="Fast, mobile-friendly holiday student fee and record search application supporting Excel, CSV, PDF, and Text files">
+
+    <!-- SheetJS Library for Excel & CSV -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+
+    <!-- PDF.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        if (typeof pdfjsLib !== 'undefined') {
+            try {
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            } catch (err) {
+                console.warn('PDF.js worker setup note:', err);
+            }
+        }
+    </script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Mountains+of+Christmas:wght@700&display=swap" rel="stylesheet">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #8b0000 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px 15px;
+            position: relative;
+            color: #ffffff;
+            overflow-x: hidden;
+        }
+
+        /* Snowflake container */
+        #snowflakes {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 1;
+            overflow: hidden;
+        }
+
+        .snowflake {
+            position: absolute;
+            top: -20px;
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 1rem;
+            animation: snowfall linear infinite;
+            user-select: none;
+            pointer-events: none;
+        }
+
+        @keyframes snowfall {
+            0% {
+                transform: translateY(-20px) rotate(0deg);
+                opacity: 0.9;
+            }
+            100% {
+                transform: translateY(105vh) rotate(360deg);
+                opacity: 0.2;
+            }
+        }
+
+        /* Container */
+        .container {
+            width: 100%;
+            max-width: 520px;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Card */
+        .card {
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 24px;
+            padding: 28px 22px;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .header h1 {
+            font-family: 'Mountains of Christmas', cursive;
+            font-size: 2rem;
+            color: #ffd700;
+            margin-bottom: 6px;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+            letter-spacing: 0.5px;
+        }
+
+        .header .ornament {
+            font-size: 1.4rem;
+            margin: 0 6px;
+            vertical-align: middle;
+        }
+
+        .header p {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 0.9rem;
+        }
+
+        /* Upload Zone */
+        .upload-zone {
+            border: 2px dashed rgba(255, 255, 255, 0.45);
+            border-radius: 18px;
+            padding: 35px 20px;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.07);
+            cursor: pointer;
+            transition: all 0.25s ease;
+            user-select: none;
+        }
+
+        .upload-zone:hover,
+        .upload-zone.drag-active {
+            background: rgba(255, 255, 255, 0.16);
+            border-color: #ffd700;
+            transform: translateY(-2px);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 12px;
+            display: inline-block;
+        }
+
+        .upload-zone h2 {
+            font-family: 'Mountains of Christmas', cursive;
+            color: #ffffff;
+            font-size: 1.6rem;
+            margin-bottom: 8px;
+        }
+
+        .upload-zone p {
+            color: rgba(255, 255, 255, 0.85);
+            margin-bottom: 16px;
+            font-size: 0.9rem;
+        }
+
+        .upload-zone .supported-tags {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-top: 14px;
+        }
+
+        .supported-tags span {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #ffd700;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #c41e3a 0%, #8b0000 100%);
+            color: white;
+            border: none;
+            padding: 13px 28px;
+            border-radius: 50px;
+            font-size: 0.98rem;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(196, 30, 58, 0.45);
+            min-height: 48px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 18px rgba(196, 30, 58, 0.6);
+        }
+
+        .btn:active {
+            opacity: 0.85;
+            transform: translateY(0);
+        }
+
+        /* Active File Banner */
+        .loaded-file-badge {
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 14px;
+            padding: 10px 14px;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            gap: 10px;
+        }
+
+        .file-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .badge-count {
+            background: #ffd700;
+            color: #0f2027;
+            font-weight: 700;
+            font-size: 0.75rem;
+            padding: 3px 10px;
+            border-radius: 20px;
+            flex-shrink: 0;
+        }
+
+        /* Search Interface */
+        #searchInterface {
+            display: none;
+        }
+
+        .search-box {
+            margin-bottom: 18px;
+        }
+
+        .search-box label {
+            display: block;
+            color: #fff;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+
+        .search-input-wrapper {
+            position: relative;
+        }
+
+        .search-input-wrapper input {
+            width: 100%;
+            padding: 14px 48px 14px 18px;
+            border: 2px solid rgba(255, 255, 255, 0.35);
+            border-radius: 50px;
+            font-size: 0.98rem;
+            font-family: 'Poppins', sans-serif;
+            background: rgba(255, 255, 255, 0.15);
+            color: #fff;
+            min-height: 48px;
+            transition: border-color 0.2s, background 0.2s;
+        }
+
+        .search-input-wrapper input::placeholder {
+            color: rgba(255, 255, 255, 0.65);
+        }
+
+        .search-input-wrapper input:focus {
+            outline: none;
+            border-color: #ffd700;
+            background: rgba(255, 255, 255, 0.22);
+            box-shadow: 0 0 12px rgba(255, 215, 0, 0.3);
+        }
+
+        .search-icon {
+            position: absolute;
+            right: 18px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.2rem;
+            pointer-events: none;
+        }
+
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .btn-search {
+            background: linear-gradient(135deg, #2d5a3d 0%, #1a472a 100%);
+            box-shadow: 0 4px 15px rgba(45, 90, 61, 0.45);
+        }
+
+        .btn-search:hover {
+            box-shadow: 0 6px 18px rgba(45, 90, 61, 0.65);
+        }
+
+        .btn-reset {
+            background: linear-gradient(135deg, #555555 0%, #333333 100%);
+            box-shadow: 0 4px 15px rgba(50, 50, 50, 0.4);
+        }
+
+        /* Result Box */
+        .result-box {
+            margin-top: 20px;
+            padding: 18px;
+            border-radius: 16px;
+            display: none;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(6px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .result-box.success {
+            background: rgba(30, 80, 50, 0.45);
+            border-color: rgba(40, 167, 69, 0.6);
+        }
+
+        .result-box.error {
+            background: rgba(120, 25, 35, 0.45);
+            border-color: rgba(220, 53, 69, 0.6);
+        }
+
+        .result-box h3 {
+            font-family: 'Mountains of Christmas', cursive;
+            font-size: 1.5rem;
+            margin-bottom: 12px;
+            color: #ffd700;
+        }
+
+        .result-item {
+            background: rgba(255, 255, 255, 0.12);
+            padding: 14px 16px;
+            border-radius: 12px;
+            margin: 10px 0;
+            border-left: 4px solid #ffd700;
+        }
+
+        .result-item p {
+            margin: 4px 0;
+            font-size: 0.95rem;
+        }
+
+        .result-item .price {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #ffd700;
+            margin: 6px 0;
+        }
+
+        .result-count {
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-bottom: 12px;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.14);
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .payment-status {
+            display: inline-block;
+            padding: 5px 14px;
+            border-radius: 20px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 4px;
+        }
+
+        .payment-status.paid {
+            background: #28a745;
+            color: #ffffff;
+        }
+
+        .payment-status.unpaid {
+            background: #dc3545;
+            color: #ffffff;
+        }
+
+        /* Loading Spinner */
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 22px;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.2);
+            border-top: 4px solid #ffd700;
+            border-radius: 50%;
+            width: 42px;
+            height: 42px;
+            animation: spin 0.9s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading p {
+            margin-top: 10px;
+            color: #fff;
+            font-size: 0.92rem;
+        }
+
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            top: 22px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            background: rgba(15, 32, 39, 0.95);
+            color: #ffffff;
+            padding: 12px 22px;
+            border-radius: 30px;
+            font-size: 0.92rem;
+            font-weight: 500;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            z-index: 1000;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease;
+            opacity: 0;
+            pointer-events: none;
+            max-width: 90%;
+            text-align: center;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        .toast.toast-error {
+            border-color: #dc3545;
+            background: rgba(139, 0, 0, 0.95);
+        }
+
+        .toast.toast-success {
+            border-color: #28a745;
+            background: rgba(26, 71, 42, 0.95);
+        }
+
+        /* Desktop media query */
+        @media (min-width: 768px) {
+            .card {
+                padding: 36px 30px;
+            }
+
+            .header h1 {
+                font-size: 2.3rem;
+            }
+
+            .button-group {
+                flex-direction: row;
+            }
+
+            .btn-search {
+                flex: 1;
+            }
+
+            .btn-reset {
+                flex: 0 0 auto;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Snowflakes Layer -->
+    <div id="snowflakes"></div>
+
+    <!-- Toast Notification Banner -->
+    <div id="toastNotification" class="toast"></div>
+
+    <div class="container">
+        <div class="card">
+            <!-- Header -->
+            <div class="header">
+                <h1>
+                    <span class="ornament">🎄</span>
+                    Student Search
+                    <span class="ornament">🎁</span>
+                </h1>
+                <p>Upload Excel, CSV, PDF, or Text to search student fee records</p>
+            </div>
+
+            <!-- Upload Interface -->
+            <div id="uploadInterface">
+                <div class="upload-zone" id="uploadZone" role="button" tabindex="0" aria-label="Upload File">
+                    <div class="upload-icon">📊</div>
+                    <h2>Upload File</h2>
+                    <p>Click to browse or drag & drop file here</p>
+                    <button class="btn" id="chooseFileBtn" type="button">
+                        ❄️ Choose File
+                    </button>
+                    <div class="supported-tags">
+                        <span>.XLSX</span>
+                        <span>.XLS</span>
+                        <span>.CSV</span>
+                        <span>.PDF</span>
+                        <span>.TXT</span>
+                    </div>
+                    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.pdf,.txt">
+                </div>
+
+                <div class="loading" id="uploadLoading">
+                    <div class="spinner"></div>
+                    <p id="loadingStatusText">Processing file...</p>
+                </div>
+            </div>
+
+            <!-- Search Interface -->
+            <div id="searchInterface">
+                <!-- Active file banner -->
+                <div class="loaded-file-badge">
+                    <div class="file-meta">
+                        <span>📄</span>
+                        <span id="loadedFileName">dataset.csv</span>
+                    </div>
+                    <span class="badge-count" id="loadedRecordCount">0 records</span>
+                </div>
+
+                <div class="search-box">
+                    <label for="searchInput">🔍 Search Student Name</label>
+                    <div class="search-input-wrapper">
+                        <input type="text" id="searchInput" placeholder="Type a name to search..." autocomplete="off">
+                        <span class="search-icon">✨</span>
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn btn-search" id="searchBtn" type="button">
+                        🎄 Search
+                    </button>
+                    <button class="btn btn-reset" id="resetBtn" type="button">
+                        🔄 Upload New File
+                    </button>
+                </div>
+
+                <!-- Result Box -->
+                <div class="result-box" id="resultBox"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State variables
+        let studentData = [];
+        let currentLoadedFileName = '';
+        let toastTimer = null;
+
+        // DOM elements
+        const uploadInterface = document.getElementById('uploadInterface');
+        const searchInterface = document.getElementById('searchInterface');
+        const uploadZone = document.getElementById('uploadZone');
+        const chooseFileBtn = document.getElementById('chooseFileBtn');
+        const fileInput = document.getElementById('fileInput');
+        const uploadLoading = document.getElementById('uploadLoading');
+        const loadingStatusText = document.getElementById('loadingStatusText');
+        const loadedFileName = document.getElementById('loadedFileName');
+        const loadedRecordCount = document.getElementById('loadedRecordCount');
+        const searchInput = document.getElementById('searchInput');
+        const searchBtn = document.getElementById('searchBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const resultBox = document.getElementById('resultBox');
+        const toastNotification = document.getElementById('toastNotification');
+
+        // Generate falling snowflakes
+        function createSnowflakes() {
+            const container = document.getElementById('snowflakes');
+            const isMobile = window.innerWidth < 768;
+            const count = isMobile ? 18 : 32;
+
+            for (let i = 0; i < count; i++) {
+                const flake = document.createElement('div');
+                flake.classList.add('snowflake');
+                flake.textContent = ['❄', '❅', '❆'][Math.floor(Math.random() * 3)];
+                flake.style.left = (Math.random() * 100) + 'vw';
+                flake.style.animationDuration = (Math.random() * 4 + 4) + 's';
+                flake.style.animationDelay = (Math.random() * 6) + 's';
+                flake.style.fontSize = (Math.random() * 8 + 12) + 'px';
+                flake.style.opacity = (Math.random() * 0.5 + 0.4).toFixed(2);
+                container.appendChild(flake);
+            }
+        }
+        createSnowflakes();
+
+        // Toast notification system
+        function showToast(message, type = 'info') {
+            if (!toastNotification) return;
+            toastNotification.textContent = message;
+            toastNotification.className = `toast show toast-${type}`;
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                toastNotification.className = 'toast';
+            }, 3500);
+        }
+
+        // HTML escaping helper to prevent XSS
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        // Upload zone interactions
+        chooseFileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            fileInput.click();
+        });
+
+        uploadZone.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        uploadZone.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                fileInput.click();
+            }
+        });
+
+        // Drag & drop handlers
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadZone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                uploadZone.classList.add('drag-active');
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadZone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                uploadZone.classList.remove('drag-active');
+            }, false);
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            const files = e.dataTransfer.files;
+            if (files && files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        // File input change
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        });
+
+        // Header detection helper
+        function isHeaderRow(parts) {
+            if (!parts || parts.length === 0) return false;
+            const keywords = ['name', 'student', 'roll', 'price', 'fee', 'amount', 'status', 'payment', 'paid', 'sr.no', 's.no', 'id', 'course'];
+            const matchCount = parts.filter(p => {
+                const lower = String(p).toLowerCase().trim();
+                return keywords.some(k => lower === k || lower.includes(k));
+            }).length;
+            return matchCount >= 2;
+        }
+
+        // Normalize payment status
+        function normalizePaymentStatus(status) {
+            if (!status) return 'Paid';
+            const norm = String(status).toLowerCase().trim();
+            if (['unpaid', 'no', 'n', '0', 'false', 'pending', 'due'].includes(norm)) {
+                return 'Unpaid';
+            }
+            return 'Paid';
+        }
+
+        // Main file handler
+        function handleFile(file) {
+            studentData = [];
+            currentLoadedFileName = file.name;
+            const ext = file.name.toLowerCase().split('.').pop();
+
+            uploadLoading.style.display = 'block';
+            loadingStatusText.textContent = `Reading ${file.name}...`;
+
+            if (ext === 'pdf') {
+                parsePDF(file);
+            } else if (['xlsx', 'xls', 'csv'].includes(ext)) {
+                parseExcel(file);
+            } else if (ext === 'txt') {
+                parseTextFile(file);
+            } else {
+                showToast('Unsupported format. Please select an Excel, CSV, PDF, or Text file.', 'error');
+                resetFileInput();
+            }
+        }
+
+        function resetFileInput() {
+            fileInput.value = '';
+            uploadLoading.style.display = 'none';
+        }
+
+        // Parse PDF file
+        async function parsePDF(file) {
+            try {
+                if (typeof pdfjsLib === 'undefined') {
+                    showToast('PDF reader library could not be loaded. Please check your connection.', 'error');
+                    resetFileInput();
+                    return;
+                }
+
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                const extractedLines = [];
+
+                for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                    const page = await pdf.getPage(pageNum);
+                    const textContent = await page.getTextContent();
+                    
+                    let currentLine = '';
+                    let lastY = null;
+
+                    for (const item of textContent.items) {
+                        if (!item.str) continue;
+                        const currentY = item.transform ? item.transform[5] : null;
+
+                        if (lastY !== null && currentY !== null && Math.abs(currentY - lastY) > 5) {
+                            if (currentLine.trim()) extractedLines.push(currentLine.trim());
+                            currentLine = item.str;
+                        } else {
+                            currentLine += (currentLine ? ' ' : '') + item.str;
+                        }
+
+                        lastY = currentY;
+
+                        if (item.hasEOL) {
+                            if (currentLine.trim()) extractedLines.push(currentLine.trim());
+                            currentLine = '';
+                            lastY = null;
+                        }
+                    }
+
+                    if (currentLine.trim()) {
+                        extractedLines.push(currentLine.trim());
+                    }
+                }
+
+                studentData = [];
+
+                for (const line of extractedLines) {
+                    const parts = line.split(/[,\t|]|  +/).map(p => p.trim()).filter(Boolean);
+                    if (isHeaderRow(parts)) continue;
+
+                    if (parts.length >= 2) {
+                        let name = parts[0];
+                        let price = parts[1];
+                        let status = parts[2] || 'Paid';
+
+                        if (parts.length >= 3 && !isNaN(parts[0]) && isNaN(parts[1])) {
+                            name = parts[1];
+                            price = parts[2];
+                            status = parts[3] || 'Paid';
+                        }
+
+                        studentData.push({
+                            name: name,
+                            price: price,
+                            paymentStatus: normalizePaymentStatus(status)
+                        });
+                    }
+                }
+
+                if (studentData.length === 0) {
+                    showToast('No student records found in the PDF. Please check file format.', 'error');
+                    resetFileInput();
+                    return;
+                }
+
+                showToast(`Loaded ${studentData.length} records from PDF!`, 'success');
+                switchToSearchInterface();
+
+            } catch (error) {
+                console.error('PDF parsing error:', error);
+                showToast('Unable to parse PDF file. Ensure it contains text.', 'error');
+                resetFileInput();
+            }
+        }
+
+        // Parse Excel and CSV files
+        function parseExcel(file) {
+            const reader = new FileReader();
+
+            reader.onload = (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const firstSheet = workbook.Sheets[firstSheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+
+                    studentData = [];
+
+                    if (!jsonData || jsonData.length === 0) {
+                        showToast('The selected spreadsheet is empty.', 'error');
+                        resetFileInput();
+                        return;
+                    }
+
+                    let startIndex = 0;
+                    let nameCol = 0;
+                    let priceCol = 1;
+                    let statusCol = 2;
+
+                    // Intelligent header mapping
+                    if (jsonData.length > 0 && Array.isArray(jsonData[0])) {
+                        const firstRow = jsonData[0].map(cell => String(cell || '').toLowerCase().trim());
+                        const foundName = firstRow.findIndex(c => c.includes('name') || c.includes('student'));
+                        const foundPrice = firstRow.findIndex(c => c.includes('price') || c.includes('fee') || c.includes('amount') || c.includes('dues') || c.includes('cost'));
+                        const foundStatus = firstRow.findIndex(c => c.includes('status') || c.includes('payment') || c.includes('paid'));
+
+                        if (foundName !== -1 || foundPrice !== -1 || isHeaderRow(firstRow)) {
+                            startIndex = 1;
+                            if (foundName !== -1) nameCol = foundName;
+                            if (foundPrice !== -1) priceCol = foundPrice;
+                            if (foundStatus !== -1) statusCol = foundStatus;
+                        }
+                    }
+
+                    for (let i = startIndex; i < jsonData.length; i++) {
+                        const row = jsonData[i];
+                        if (!row || row.length === 0) continue;
+
+                        const nameVal = row[nameCol] !== undefined ? String(row[nameCol]).trim() : '';
+                        const priceVal = row[priceCol] !== undefined ? String(row[priceCol]).trim() : '';
+                        const statusVal = row[statusCol] !== undefined ? String(row[statusCol]).trim() : '';
+
+                        if (nameVal && (priceVal || row.length >= 2)) {
+                            studentData.push({
+                                name: nameVal,
+                                price: priceVal || 'N/A',
+                                paymentStatus: normalizePaymentStatus(statusVal)
+                            });
+                        }
+                    }
+
+                    if (studentData.length === 0) {
+                        showToast('No valid records found in the sheet.', 'error');
+                        resetFileInput();
+                        return;
+                    }
+
+                    showToast(`Loaded ${studentData.length} records!`, 'success');
+                    switchToSearchInterface();
+
+                } catch (error) {
+                    console.error('Excel parse error:', error);
+                    showToast('Failed to parse spreadsheet file.', 'error');
+                    resetFileInput();
+                }
+            };
+
+            reader.onerror = () => {
+                showToast('Failed to read file.', 'error');
+                resetFileInput();
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
+
+        // Parse Plain Text files
+        function parseTextFile(file) {
+            const reader = new FileReader();
+
+            reader.onload = (e) => {
+                try {
+                    const text = e.target.result;
+                    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+                    studentData = [];
+
+                    for (const line of lines) {
+                        const parts = line.split(/[,\t|]|  +/).map(p => p.trim()).filter(Boolean);
+                        if (isHeaderRow(parts)) continue;
+
+                        if (parts.length >= 2) {
+                            let name = parts[0];
+                            let price = parts[1];
+                            let status = parts[2] || 'Paid';
+
+                            if (parts.length >= 3 && !isNaN(parts[0]) && isNaN(parts[1])) {
+                                name = parts[1];
+                                price = parts[2];
+                                status = parts[3] || 'Paid';
+                            }
+
+                            studentData.push({
+                                name: name,
+                                price: price,
+                                paymentStatus: normalizePaymentStatus(status)
+                            });
+                        }
+                    }
+
+                    if (studentData.length === 0) {
+                        showToast('No valid records found in the text file.', 'error');
+                        resetFileInput();
+                        return;
+                    }
+
+                    showToast(`Loaded ${studentData.length} records!`, 'success');
+                    switchToSearchInterface();
+
+                } catch (error) {
+                    console.error('Text file parse error:', error);
+                    showToast('Failed to parse text file.', 'error');
+                    resetFileInput();
+                }
+            };
+
+            reader.onerror = () => {
+                showToast('Failed to read file.', 'error');
+                resetFileInput();
+            };
+
+            reader.readAsText(file);
+        }
+
+        // Switch views
+        function switchToSearchInterface() {
+            uploadLoading.style.display = 'none';
+            uploadInterface.style.display = 'none';
+            searchInterface.style.display = 'block';
+            loadedFileName.textContent = currentLoadedFileName || 'dataset';
+            loadedRecordCount.textContent = `${studentData.length} records`;
+            searchInput.value = '';
+            resultBox.style.display = 'none';
+            searchInput.focus();
+        }
+
+        // Search engine
+        function performSearch() {
+            const searchTerm = searchInput.value.trim();
+
+            if (!searchTerm) {
+                showResult('<h3>⚠️ Please Enter a Name</h3><p>Type a student name into the search bar above.</p>', 'error');
+                return;
+            }
+
+            const cleanSearch = searchTerm.toLowerCase();
+            const searchTokens = cleanSearch.split(/\s+/).filter(Boolean);
+
+            // 1. Exact match
+            const exactMatches = studentData.filter(student =>
+                student.name.toLowerCase().trim() === cleanSearch
+            );
+
+            if (exactMatches.length > 0) {
+                displayResults(exactMatches, searchTerm, 'exact');
+                return;
+            }
+
+            // 2. Phrase contains
+            const phraseMatches = studentData.filter(student =>
+                student.name.toLowerCase().includes(cleanSearch)
+            );
+
+            if (phraseMatches.length > 0) {
+                displayResults(phraseMatches, searchTerm, 'phrase');
+                return;
+            }
+
+            // 3. All tokens match
+            const tokenMatches = studentData.filter(student => {
+                const nameLower = student.name.toLowerCase();
+                return searchTokens.every(token => nameLower.includes(token));
+            });
+
+            if (tokenMatches.length > 0) {
+                displayResults(tokenMatches, searchTerm, 'tokens');
+                return;
+            }
+
+            // 4. Any token match
+            const partialMatches = studentData.filter(student => {
+                const nameLower = student.name.toLowerCase();
+                return searchTokens.some(token => nameLower.includes(token));
+            });
+
+            if (partialMatches.length > 0) {
+                displayResults(partialMatches, searchTerm, 'partial');
+                return;
+            }
+
+            // Not found
+            showResult(
+                `<h3>❌ Record Not Found</h3>
+                <p>No student matching "<strong>${escapeHtml(searchTerm)}</strong>" was found among ${studentData.length} records.</p>`,
+                'error'
+            );
+        }
+
+        // Display results
+        function displayResults(results, searchTerm, matchType) {
+            let badgeText = '✅ Exact Match';
+            if (results.length > 1) {
+                badgeText = `📋 Found ${results.length} record(s)`;
+            } else if (matchType === 'phrase' || matchType === 'tokens') {
+                badgeText = '🔍 Name Matched';
+            } else if (matchType === 'partial') {
+                badgeText = '⚡ Partial Match';
+            }
+
+            let resultHTML = `<h3>🎄 Student Record Found! 🎁</h3>`;
+            resultHTML += `<div class="result-count">${escapeHtml(badgeText)}</div>`;
+
+            results.forEach((result) => {
+                const isPaid = result.paymentStatus === 'Paid';
+                const statusClass = isPaid ? 'paid' : 'unpaid';
+                const statusIcon = isPaid ? '✅' : '❌';
+
+                resultHTML += `
+                    <div class="result-item">
+                        <p><strong>Name:</strong> ${escapeHtml(result.name)}</p>
+                        <p class="price"><strong>Fee / Price:</strong> ${escapeHtml(result.price)}</p>
+                        <p><span class="payment-status ${statusClass}">${statusIcon} ${escapeHtml(result.paymentStatus)}</span></p>
+                    </div>
+                `;
+            });
+
+            showResult(resultHTML, 'success');
+        }
+
+        // Show result box
+        function showResult(htmlMessage, type) {
+            resultBox.innerHTML = htmlMessage;
+            resultBox.className = 'result-box ' + type;
+            resultBox.style.display = 'block';
+        }
+
+        // Reset application
+        function resetApp() {
+            studentData = [];
+            currentLoadedFileName = '';
+            searchInput.value = '';
+            resultBox.style.display = 'none';
+            resultBox.innerHTML = '';
+            fileInput.value = '';
+            uploadLoading.style.display = 'none';
+            searchInterface.style.display = 'none';
+            uploadInterface.style.display = 'block';
+        }
+
+        // Listeners
+        searchBtn.addEventListener('click', performSearch);
+        resetBtn.addEventListener('click', resetApp);
+
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                performSearch();
+            }
+        });
+    </script>
+</body>
+
+</html>
